@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "it.einstein.albertcontrol.app-mergeDebugResources-1:/values-watch-v20/values-watch-v20.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\fabrizio.ojeda\\Documents\\android-studio-portable\\data\\.gradle\\caches\\9.9.1\\transforms\\6ec03a73c2f8c88c1c2f1ed4a58d813f\\transformed\\appcompat-1.8.0\\res\\values-watch-v20\\values-watch-v20.xml",
+                    "from": {
+                        "startLines": "2,5,8",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,214,385",
+                        "endLines": "4,7,10",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "209,380,553"
+                    }
+                }
+            ]
+        }
+    ]
+}

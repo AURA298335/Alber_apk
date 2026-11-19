@@ -1,0 +1,5 @@
+it.einstein.albertcontrol.test.app-updated_navigation_xml-0 C:\Users\fabrizio.ojeda\Desktop\apk_app\Alber_apk\app\build\generated\updated_navigation_xml\debugAndroidTest
+it.einstein.albertcontrol.test.app-packageDebugAndroidTestResources-1 C:\Users\fabrizio.ojeda\Desktop\apk_app\Alber_apk\app\build\intermediates\incremental\debugAndroidTest\packageDebugAndroidTestResources\merged.dir
+it.einstein.albertcontrol.test.app-packageDebugAndroidTestResources-2 C:\Users\fabrizio.ojeda\Desktop\apk_app\Alber_apk\app\build\intermediates\incremental\debugAndroidTest\packageDebugAndroidTestResources\stripped.dir
+it.einstein.albertcontrol.test.app-debugAndroidTest-3 C:\Users\fabrizio.ojeda\Desktop\apk_app\Alber_apk\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources
+gradleHome-0 C:\Users\fabrizio.ojeda\Documents\android-studio-portable\data\.gradle
