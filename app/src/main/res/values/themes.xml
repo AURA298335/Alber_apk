@@ -1,8 +1,0 @@
-<resources>
-    <style name="Theme.Albert" parent="Theme.Material3.Dark.NoActionBar">
-        <item name="android:statusBarColor">#0c1a2e</item>
-        <item name="android:windowBackground">#0c1a2e</item>
-        <item name="colorPrimary">#3ed6d6</item>
-        <item name="colorOnPrimary">#04121f</item>
-    </style>
-</resources>
