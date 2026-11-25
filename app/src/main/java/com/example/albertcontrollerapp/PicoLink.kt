@@ -29,7 +29,7 @@ object PicoConfig {
     const val CONNECT_ATTEMPTS = 3
 
     /** Se il Pico non manda nulla per questo tempo, il collegamento è considerato perso. 0 = disattivato. */
-    const val SILENCE_TIMEOUT_MS = 4_000L
+    const val SILENCE_TIMEOUT_MS = 0
 
     /** Ogni quanto ripetere il comando di guida mentre un pulsante è premuto. */
     const val COMMAND_REPEAT_MS = 100L
@@ -74,7 +74,6 @@ class PicoLink(private val context: Context) {
             var lastError: String? = null
             repeat(PicoConfig.CONNECT_ATTEMPTS) {
                 try {
-                    adapter.cancelDiscovery()
                     val s = device.createRfcommSocketToServiceRecord(PicoConfig.SPP_UUID)
                     try {
                         s.connect()
@@ -140,7 +139,7 @@ class PicoLink(private val context: Context) {
         if (PicoConfig.SILENCE_TIMEOUT_MS > 0) {        // controllo che il Pico sia ancora vivo
             jobs += scope.launch {
                 while (isActive) {
-                    delay(1000)
+                    delay(1000.milliseconds)
                     if (System.currentTimeMillis() - lastRx.get() > PicoConfig.SILENCE_TIMEOUT_MS) {
                         fail("il Pico non risponde")
                         break
