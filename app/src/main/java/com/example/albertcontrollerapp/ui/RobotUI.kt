@@ -1,8 +1,7 @@
-package com.example.albertcontrollerapp
+package com.example.albertcontrollerapp.ui
 
-
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.albertcontrollerapp.ui.theme.*
-
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -11,6 +10,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -39,9 +39,12 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-
+import com.example.albertcontrollerapp.R
 
 /* ============================ MODELLI ============================ */
+
+/** Dispositivo Bluetooth mostrato nell'elenco di scelta. */
+data class BtDevice(val name: String, val address: String)
 
 enum class ConnectionState { Idle, Connecting, Connected, Failed }
 
@@ -53,6 +56,7 @@ data class RobotUiState(
     val speedPercent: Int = 0,
     val directionDeg: Int = 0,
     val emergencyPressed: Boolean = false,
+    val batteryMv: Int = 0,
     val leftCm: Int = 0,
     val centerCm: Int = 0,
     val rightCm: Int = 0,
@@ -77,16 +81,32 @@ fun AlbertApp(
     onSpeedChange: (Int) -> Unit,
     onTogglePause: () -> Unit,
     onClearConsole: () -> Unit,
+    onStop: () -> Unit,
+    onRearm: () -> Unit,
+    deviceName: String?,
+    onPickDevice: () -> Unit,
+    pickerVisible: Boolean,
+    pairedDevices: List<BtDevice>,
+    onDeviceSelected: (BtDevice) -> Unit,
+    onDismissPicker: () -> Unit,
+    onOpenBluetoothSettings: () -> Unit,
+    errorMessage: String? = null,
 ) {
     AlbertTheme {
         Surface(Modifier.fillMaxSize(), color = AlbertBg) {
             when (connection) {
                 ConnectionState.Idle, ConnectionState.Connecting ->
-                    StartScreen(connecting = connection == ConnectionState.Connecting, onConnect = onConnect)
-                ConnectionState.Failed -> FailedScreen(onRetry = onConnect)
+                    StartScreen(
+                        connecting = connection == ConnectionState.Connecting,
+                        deviceName = deviceName, onConnect = onConnect, onPickDevice = onPickDevice,
+                    )
+                ConnectionState.Failed -> FailedScreen(message = errorMessage, onRetry = onConnect, onPickDevice = onPickDevice)
                 ConnectionState.Connected -> ConnectedScreen(
-                    robot, onMove, onSpeedChange, onTogglePause, onClearConsole,
+                    robot, onMove, onSpeedChange, onTogglePause, onClearConsole, onStop, onRearm,
                 )
+            }
+            if (pickerVisible) {
+                DevicePickerDialog(pairedDevices, onDeviceSelected, onDismissPicker, onOpenBluetoothSettings)
             }
         }
     }
@@ -95,7 +115,7 @@ fun AlbertApp(
 /* ============================ INIZIO ============================ */
 
 @Composable
-fun StartScreen(connecting: Boolean, onConnect: () -> Unit) {
+fun StartScreen(connecting: Boolean, deviceName: String?, onConnect: () -> Unit, onPickDevice: () -> Unit) {
     Column(
         Modifier.fillMaxSize().systemBarsPadding().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -125,13 +145,20 @@ fun StartScreen(connecting: Boolean, onConnect: () -> Unit) {
                 Text("Connettiti", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         }
+        Spacer(Modifier.height(12.dp))
+        TextButton(
+            onClick = onPickDevice, enabled = !connecting,
+            colors = ButtonDefaults.textButtonColors(contentColor = AlbertMute),
+        ) {
+            Text(if (deviceName == null) "Scegli dispositivo" else "$deviceName · cambia")
+        }
     }
 }
 
 /* ============================ ERRORE ============================ */
 
 @Composable
-fun FailedScreen(onRetry: () -> Unit) {
+fun FailedScreen(message: String?, onRetry: () -> Unit, onPickDevice: () -> Unit) {
     Column(
         Modifier.fillMaxSize().systemBarsPadding().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -143,6 +170,10 @@ fun FailedScreen(onRetry: () -> Unit) {
         )
         Spacer(Modifier.height(24.dp))
         Text("Connessione non riuscita", fontSize = 18.sp, color = AlbertText)
+        if (!message.isNullOrBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text(message, fontSize = 14.sp, color = AlbertMute, textAlign = TextAlign.Center)
+        }
         Spacer(Modifier.height(40.dp))
         Button(
             onClick = onRetry,
@@ -150,6 +181,11 @@ fun FailedScreen(onRetry: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = AlbertPanel2, contentColor = AlbertText),
             contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp),
         ) { Text("Riprova", fontWeight = FontWeight.SemiBold) }
+        Spacer(Modifier.height(12.dp))
+        TextButton(
+            onClick = onPickDevice,
+            colors = ButtonDefaults.textButtonColors(contentColor = AlbertMute),
+        ) { Text("Scegli un altro dispositivo") }
     }
 }
 
@@ -162,13 +198,15 @@ fun ConnectedScreen(
     onSpeedChange: (Int) -> Unit,
     onTogglePause: () -> Unit,
     onClearConsole: () -> Unit,
+    onStop: () -> Unit,
+    onRearm: () -> Unit,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     BackHandler(enabled = tab != 0) { tab = 0 }
 
     if (tab == 2) {
         // Tab 3: schermo intero in orizzontale
-        ControlScreen(robot, onMove, onSpeedChange, onExit = { tab = 0 })
+        ControlScreen(robot, onMove, onSpeedChange, onStop, onRearm, onExit = { tab = 0 })
         return
     }
 
@@ -304,6 +342,8 @@ fun ControlScreen(
     r: RobotUiState,
     onMove: (Direction, Boolean) -> Unit,
     onSpeedChange: (Int) -> Unit,
+    onStop: () -> Unit,
+    onRearm: () -> Unit,
     onExit: () -> Unit,
 ) {
     LandscapeFullscreenEffect()
@@ -335,6 +375,28 @@ fun ControlScreen(
                 .clip(RoundedCornerShape(14.dp))
                 .background(AlbertPanel.copy(alpha = 0.7f)),
         ) { Icon(painterResource(R.drawable.baseline_arrow_back_24), contentDescription = "Indietro", tint = AlbertText) }
+
+        // STOP di emergenza e riarmo (in alto a destra)
+        Row(
+            Modifier
+                .align(Alignment.TopEnd)
+                .windowInsetsPadding(WindowInsets.displayCutout)
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = onRearm,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AlbertPanel.copy(alpha = 0.8f), contentColor = AlbertText,
+                ),
+            ) { Text("Riarma", fontWeight = FontWeight.SemiBold) }
+            Button(
+                onClick = onStop,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AlbertRed, contentColor = AlbertOnRed),
+            ) { Text("STOP", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp) }
+        }
 
         // Croce direzionale (in basso a sinistra)
         Column(
@@ -443,4 +505,49 @@ private fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+/* ============================ SCELTA DISPOSITIVO ============================ */
+
+@Composable
+fun DevicePickerDialog(
+    devices: List<BtDevice>,
+    onSelect: (BtDevice) -> Unit,
+    onDismiss: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AlbertPanel,
+        title = { Text("Scegli il robot", color = AlbertText, fontWeight = FontWeight.ExtraBold) },
+        text = {
+            if (devices.isEmpty()) {
+                Text(
+                    "Nessun dispositivo associato. Accendi il Pico, associalo dalle impostazioni Bluetooth e torna qui.",
+                    color = AlbertMute,
+                )
+            } else {
+                LazyColumn {
+                    items(devices) { d ->
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onSelect(d) }
+                                .padding(12.dp),
+                        ) {
+                            Text(d.name, color = AlbertText, fontWeight = FontWeight.SemiBold)
+                            Text(d.address, color = AlbertMute, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onOpenSettings) { Text("Impostazioni Bluetooth", color = AlbertCyan) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Annulla", color = AlbertMute) }
+        },
+    )
 }
