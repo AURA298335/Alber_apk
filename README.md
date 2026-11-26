@@ -1,2 +1,0 @@
-# Alber_apk
-Applicazione 
